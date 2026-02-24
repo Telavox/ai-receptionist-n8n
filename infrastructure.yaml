@@ -1,0 +1,1062 @@
+# ============================================================================
+# AI RECEPTIONIST - GOOGLE CLOUD INFRASTRUCTURE DOCUMENTATION
+# ============================================================================
+# This file is for LOCAL REFERENCE ONLY - NOT a config file
+# Generated: 2026-01-26
+# Last Updated: 2026-02-10
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# PROJECT
+# ----------------------------------------------------------------------------
+project:
+  id: gtm-labs-484110
+  name: "GTM Labs 514001"
+  number: "824433763918"
+  parent:
+    type: folder
+    id: "35794514488"
+  lifecycle_state: ACTIVE
+  created: "2026-01-12T10:17:08.964897Z"
+  primary_region: europe-west1
+
+# ----------------------------------------------------------------------------
+# ENABLED APIS / SERVICES
+# ----------------------------------------------------------------------------
+enabled_services:
+  # Core
+  - cloudapis.googleapis.com
+  - cloudresourcemanager.googleapis.com
+  - servicemanagement.googleapis.com
+  - serviceusage.googleapis.com
+  
+  # Compute & Containers
+  - compute.googleapis.com
+  - container.googleapis.com
+  - containerfilesystem.googleapis.com
+  - containerregistry.googleapis.com
+  - autoscaling.googleapis.com
+  
+  # Databases
+  - sqladmin.googleapis.com
+  - sql-component.googleapis.com
+  - redis.googleapis.com
+  - alloydb.googleapis.com
+  - datastore.googleapis.com
+  
+  # Storage
+  - storage.googleapis.com
+  - storage-api.googleapis.com
+  - storage-component.googleapis.com
+  
+  # CI/CD & Artifacts
+  - artifactregistry.googleapis.com
+  - cloudbuild.googleapis.com
+  - sourcerepo.googleapis.com
+  - deploymentmanager.googleapis.com
+  
+  # Networking
+  - dns.googleapis.com
+  - networkconnectivity.googleapis.com
+  - servicenetworking.googleapis.com
+  - certificatemanager.googleapis.com
+  
+  # Security & IAM
+  - iam.googleapis.com
+  - iamcredentials.googleapis.com
+  - iap.googleapis.com
+  - cloudkms.googleapis.com
+  - secretmanager.googleapis.com
+  
+  # Monitoring & Logging
+  - logging.googleapis.com
+  - monitoring.googleapis.com
+  - cloudtrace.googleapis.com
+  
+  # Big Data
+  - bigquery.googleapis.com
+  - bigqueryconnection.googleapis.com
+  - bigquerydatapolicy.googleapis.com
+  - bigquerydatatransfer.googleapis.com
+  - bigquerymigration.googleapis.com
+  - bigqueryreservation.googleapis.com
+  - bigquerystorage.googleapis.com
+  - analyticshub.googleapis.com
+  - dataflow.googleapis.com
+  - dataform.googleapis.com
+  - dataplex.googleapis.com
+  
+  # Messaging
+  - pubsub.googleapis.com
+  
+  # Backup
+  - gkebackup.googleapis.com
+  
+  # Other
+  - billingbudgets.googleapis.com
+  - oslogin.googleapis.com
+
+# ----------------------------------------------------------------------------
+# NETWORKING
+# ----------------------------------------------------------------------------
+networking:
+  vpcs:
+    # Main Application VPC
+    - name: ai-receptionist-vpc
+      id: "1594300814070116574"
+      mode: CUSTOM
+      routing_mode: REGIONAL
+      created: "2026-01-19T07:30:57.485-08:00"
+      peerings:
+        - name: redis-peer-265215337134
+          network: d87433f9fdb68dc0bp-tp/ai-receptionist-vpc
+          state: ACTIVE
+          connected: "2026-01-20T07:00:20.226-08:00"
+        - name: servicenetworking-googleapis-com
+          network: pb7ba4d802f73fde0p-tp/servicenetworking
+          state: ACTIVE
+          connected: "2026-01-23T15:59:46.057-08:00"
+          purpose: "Cloud SQL private IP"
+    
+    # Default VPC (auto-created)
+    - name: default
+      id: "4193847375045063876"
+      mode: AUTO
+      routing_mode: REGIONAL
+      created: "2026-01-19T07:13:47.661-08:00"
+      description: "Default network for the project"
+
+  subnets:
+    # Main Application Subnet
+    - name: ai-receptionist-subnet
+      id: "2820347276512456764"
+      network: ai-receptionist-vpc
+      region: europe-west1
+      ip_cidr_range: 10.0.0.0/20
+      gateway: 10.0.0.1
+      private_google_access: true
+      purpose: PRIVATE
+      created: "2026-01-19T07:33:39.925-08:00"
+      secondary_ranges:
+        - name: pods
+          cidr: 10.4.0.0/14
+        - name: services
+          cidr: 10.8.0.0/20
+        - name: gke-ai-receptionist-cluster-pods-f67adb64
+          cidr: 10.84.128.0/17
+
+  ip_addresses:
+    # Static External IP for Load Balancer
+    - name: ai-receptionist-static-ip
+      address: 34.111.39.139
+      type: EXTERNAL
+      network_tier: PREMIUM
+      status: IN_USE
+      used_by: ai-receptionist-static-http (forwarding rule)
+      created: "2026-01-21T09:54:50.242-08:00"
+    
+    # Private Service Connection Range (for Cloud SQL)
+    - name: google-managed-services-range
+      address: 10.83.0.0
+      prefix_length: 16
+      type: INTERNAL
+      purpose: VPC_PEERING
+      network: ai-receptionist-vpc
+      status: RESERVED
+    
+    # Cloud NAT Auto IP
+    - name: nat-auto-ip-34542065-1-1769022629729534
+      address: 34.14.86.12
+      type: EXTERNAL
+      purpose: NAT_AUTO
+      region: europe-west1
+      status: IN_USE
+      used_by: ai-receptionist-router
+
+  routers:
+    - name: ai-receptionist-router
+      network: ai-receptionist-vpc
+      region: europe-west1
+      created: "2026-01-19T07:41:58.234-08:00"
+      nat_config:
+        name: ai-receptionist-nat
+        ip_allocation: AUTO_ONLY
+        source_ranges: ALL_SUBNETWORKS_ALL_IP_RANGES
+        network_tier: PREMIUM
+        endpoint_types: [ENDPOINT_TYPE_VM]
+
+  firewall_rules:
+    # Custom Rules
+    - name: ai-receptionist-allow-ssh
+      network: ai-receptionist-vpc
+      direction: INGRESS
+      priority: 1000
+      source_ranges: [35.235.240.0/20]  # IAP range
+      target_tags: [ssh]
+      allowed:
+        - protocol: tcp
+          ports: ["22"]
+      description: "Allow SSH via IAP"
+
+    # GKE Auto-generated Rules
+    - name: gke-ai-receptionist-cluster-f67adb64-all
+      network: ai-receptionist-vpc
+      direction: INGRESS
+      priority: 1000
+      source_ranges: [10.84.128.0/17]  # Pod CIDR
+      target_tags: [gke-ai-receptionist-cluster-f67adb64-node]
+      allowed:
+        - protocol: tcp
+        - protocol: udp
+        - protocol: icmp
+        - protocol: esp
+        - protocol: ah
+        - protocol: sctp
+
+    - name: gke-ai-receptionist-cluster-f67adb64-vms
+      network: ai-receptionist-vpc
+      direction: INGRESS
+      priority: 1000
+      source_ranges: [10.0.0.0/20]  # Subnet CIDR
+      target_tags: [gke-ai-receptionist-cluster-f67adb64-node]
+      allowed:
+        - protocol: icmp
+        - protocol: tcp
+          ports: ["1-65535"]
+        - protocol: udp
+          ports: ["1-65535"]
+
+    - name: gke-ai-receptionist-cluster-f67adb64-inkubelet
+      network: ai-receptionist-vpc
+      direction: INGRESS
+      priority: 999
+      source_ranges: [10.84.128.0/17]
+      source_tags: [gke-ai-receptionist-cluster-f67adb64-node]
+      target_tags: [gke-ai-receptionist-cluster-f67adb64-node]
+      allowed:
+        - protocol: tcp
+          ports: ["10255"]
+
+    - name: gke-ai-receptionist-cluster-f67adb64-exkubelet
+      network: ai-receptionist-vpc
+      direction: INGRESS
+      priority: 1000
+      source_ranges: [0.0.0.0/0]
+      target_tags: [gke-ai-receptionist-cluster-f67adb64-node]
+      denied:
+        - protocol: tcp
+          ports: ["10255"]
+
+    # Default VPC Rules
+    - name: default-allow-icmp
+      network: default
+      direction: INGRESS
+      priority: 65534
+      source_ranges: [0.0.0.0/0]
+      allowed:
+        - protocol: icmp
+
+    - name: default-allow-internal
+      network: default
+      direction: INGRESS
+      priority: 65534
+      source_ranges: [10.128.0.0/9]
+      allowed:
+        - protocol: tcp
+          ports: ["0-65535"]
+        - protocol: udp
+          ports: ["0-65535"]
+        - protocol: icmp
+
+    - name: default-allow-rdp
+      network: default
+      direction: INGRESS
+      priority: 65534
+      source_ranges: [0.0.0.0/0]
+      allowed:
+        - protocol: tcp
+          ports: ["3389"]
+
+    - name: default-allow-ssh
+      network: default
+      direction: INGRESS
+      priority: 65534
+      source_ranges: [0.0.0.0/0]
+      allowed:
+        - protocol: tcp
+          ports: ["22"]
+
+# ----------------------------------------------------------------------------
+# CLOUD SQL (PostgreSQL)
+# ----------------------------------------------------------------------------
+cloud_sql:
+  instances:
+    - name: ai-receptionist-db-dev
+      connection_name: gtm-labs-484110:europe-west1:ai-receptionist-db-dev
+      database_version: POSTGRES_15
+      installed_version: POSTGRES_15_15
+      region: europe-west1
+      zone: europe-west1-d
+      secondary_zone: europe-west1-b
+      state: RUNNABLE
+      created: "2026-01-19T16:38:52.367Z"
+      
+      instance_type: CLOUD_SQL_INSTANCE
+      backend_type: SECOND_GEN
+      
+      settings:
+        tier: db-custom-2-8192  # 2 vCPUs, 8GB RAM
+        availability_type: REGIONAL  # High availability
+        disk_type: PD_SSD
+        disk_size_gb: 20
+        disk_autoresize: true
+        activation_policy: ALWAYS
+        pricing_plan: PER_USE
+        replication_type: SYNCHRONOUS
+        
+      ip_configuration:
+        ipv4_enabled: false  # No public IP
+        private_ip: 10.83.0.3
+        private_network: ai-receptionist-vpc
+        require_ssl: false
+        ssl_mode: ALLOW_UNENCRYPTED_AND_ENCRYPTED
+        private_path_enabled: true
+        
+      backup_configuration:
+        enabled: true
+        start_time: "03:00"
+        point_in_time_recovery: true
+        retained_backups: 7
+        transaction_log_retention_days: 7
+        backup_tier: STANDARD
+        
+      maintenance:
+        version: POSTGRES_15_15.R20260108.01_01
+        
+      service_account: p824433763918-k2z05b@gcp-sa-cloud-sql.iam.gserviceaccount.com
+      
+      ssl_cert:
+        sha1_fingerprint: 80afb3b84d38fe7ee6e19351e644fde4e44b903d
+        expires: "2036-01-17T16:42:41.146Z"
+
+  databases:
+    - name: ai_receptionist
+      instance: ai-receptionist-db-dev
+      charset: UTF8
+      collation: en_US.UTF8
+      
+    - name: postgres
+      instance: ai-receptionist-db-dev
+      charset: UTF8
+      collation: en_US.UTF8
+      note: "Default system database"
+
+  users:
+    - name: django_app
+      instance: ai-receptionist-db-dev
+      type: BUILT_IN
+      note: "Application user for Django"
+      
+    - name: postgres
+      instance: ai-receptionist-db-dev
+      type: BUILT_IN
+      note: "Default superuser"
+
+# ----------------------------------------------------------------------------
+# ALLOYDB (PostgreSQL - Production)
+# ----------------------------------------------------------------------------
+alloydb:
+  clusters:
+    - name: ai-receptionist-prod
+      uid: 2b882641-9990-4c41-8389-e52d5a0f9088
+      cluster_type: PRIMARY
+      database_version: POSTGRES_16
+      region: europe-west1
+      network: ai-receptionist-vpc
+      state: READY
+      subscription_type: STANDARD
+      created: "2026-01-19T16:48:00.580608710Z"
+      updated: "2026-02-19T17:30:45.482671191Z"
+
+      encryption:
+        type: GOOGLE_DEFAULT_ENCRYPTION
+
+      backup_configuration:
+        automated_backup:
+          enabled: true
+          schedule:
+            days: [MONDAY, WEDNESDAY, FRIDAY, SUNDAY]
+            start_time: "03:00"
+          backup_window: 3600s
+          location: europe-west1
+          retention: 1209600s  # 14 days
+        continuous_backup:
+          enabled: true
+          recovery_window_days: 14
+
+  instances:
+    # Primary Instance (read-write)
+    - name: ai-receptionist-primary
+      uid: 076409fe-714f-4747-8e63-f77f237c649f
+      cluster: ai-receptionist-prod
+      instance_type: PRIMARY
+      state: READY
+      created: "2026-01-19T16:48:16.654028723Z"
+      updated: "2026-02-19T17:09:09.343200784Z"
+
+      ip_address: 10.83.1.2
+      availability_type: REGIONAL
+      machine_config:
+        cpu_count: 4
+
+      ssl_config:
+        ssl_mode: ENCRYPTED_ONLY
+
+      zones:
+        primary: europe-west1-d
+        writable_standby: europe-west1-c
+
+      observability:
+        enabled: false
+        query_plans_per_minute: 20
+        track_wait_events: true
+
+    # Read Pool Instance
+    - name: ai-receptionist-read-pool
+      uid: b908d4b3-de10-42fe-8812-2fc0d7d469b1
+      cluster: ai-receptionist-prod
+      instance_type: READ_POOL
+      state: READY
+      created: "2026-01-19T16:58:53.533280743Z"
+      updated: "2026-02-19T17:09:09.275761761Z"
+
+      ip_address: 10.83.1.5
+      machine_config:
+        cpu_count: 4
+      node_count: 2
+
+      ssl_config:
+        ssl_mode: ENCRYPTED_ONLY
+
+      observability:
+        enabled: false
+        query_plans_per_minute: 20
+        track_wait_events: true
+
+# ----------------------------------------------------------------------------
+# MEMORYSTORE (Redis)
+# ----------------------------------------------------------------------------
+redis:
+  instances:
+    # Production Redis
+    - name: ai-receptionist-redis-prod
+      display_name: "AI Receptionist Redis (Production)"
+      region: europe-west1
+      location_id: europe-west1-b
+      alternative_location_id: europe-west1-d
+      state: READY
+      created: "2026-01-20T14:59:18.534061972Z"
+      
+      tier: STANDARD_HA  # High Availability
+      memory_size_gb: 5
+      redis_version: REDIS_7_0
+      
+      host: 10.206.203.100
+      port: 6379
+      read_endpoint: 10.206.203.101
+      read_endpoint_port: 6379
+      
+      authorized_network: ai-receptionist-vpc
+      connect_mode: DIRECT_PEERING
+      reserved_ip_range: 10.206.203.96/28
+      
+      read_replicas_mode: READ_REPLICAS_ENABLED
+      replica_count: 1
+      nodes:
+        - id: node-0
+          zone: europe-west1-b
+        - id: node-1
+          zone: europe-west1-d
+          
+      persistence_mode: DISABLED
+      transit_encryption: DISABLED
+      
+      maintenance_version: "20251007_00_00"
+      available_maintenance_versions: ["20251110_01_00"]
+      
+      service_account: service-824433763918@cloud-redis.iam.gserviceaccount.com
+
+    # Dev/Staging Redis
+    - name: ai-receptionist-redis-dev
+      display_name: "AI Receptionist Redis (Dev/Staging)"
+      region: europe-west1
+      location_id: europe-west1-c
+      state: READY
+      created: "2026-01-20T14:59:06.956664030Z"
+      
+      tier: BASIC  # No HA
+      memory_size_gb: 1
+      redis_version: REDIS_7_0
+      
+      host: 10.209.232.147
+      port: 6379
+      
+      authorized_network: ai-receptionist-vpc
+      connect_mode: DIRECT_PEERING
+      reserved_ip_range: 10.209.232.144/29
+      
+      read_replicas_mode: READ_REPLICAS_DISABLED
+      replica_count: 0
+      nodes:
+        - id: node-0
+          zone: europe-west1-c
+          
+      persistence_mode: DISABLED
+      transit_encryption: DISABLED
+
+# ----------------------------------------------------------------------------
+# GKE (Kubernetes Engine)
+# ----------------------------------------------------------------------------
+gke:
+  clusters:
+    - name: ai-receptionist-cluster
+      location: europe-west1  # Regional cluster
+      type: AUTOPILOT
+      state: RUNNING
+      
+      kubernetes_version: 1.33.5-gke.2072000
+      release_channel: REGULAR
+      
+      network: ai-receptionist-vpc
+      subnetwork: ai-receptionist-subnet
+      
+      endpoints:
+        private: 10.0.0.2
+        public: 34.38.231.94
+        
+      ip_ranges:
+        cluster_ipv4_cidr: 10.84.128.0/17
+        services_ipv4_cidr: 34.118.224.0/20
+        pod_range: gke-ai-receptionist-cluster-pods-f67adb64
+        
+      private_cluster:
+        enabled: true
+        enable_private_nodes: true
+        
+      master_authorized_networks:
+        enabled: false  # Disabled to allow Cloud Build private pool access (ephemeral IPs)
+        
+      security:
+        shielded_nodes: true
+        workload_identity_pool: gtm-labs-484110.svc.id.goog
+        binary_authorization: DISABLED
+        
+      features:
+        vertical_pod_autoscaling: true
+        http_load_balancing: true
+        horizontal_pod_autoscaling: true
+        network_policy: false
+        
+      addons:
+        cloud_run: DISABLED
+        config_connector: DISABLED
+        dns_cache: DISABLED
+        gce_persistent_disk_csi: ENABLED
+        gcp_filestore_csi: DISABLED
+        
+      logging_config:
+        enabled_components:
+          - SYSTEM_COMPONENTS
+          - WORKLOADS
+          
+      monitoring_config:
+        enabled_components:
+          - SYSTEM_COMPONENTS
+          
+      autopilot:
+        enabled: true
+        workload_policy_config:
+          allow_net_admin: false
+          
+      node_pools:
+        # Autopilot manages node pools automatically
+        # Listed here are the auto-provisioned pools
+        - name: pool-8
+          machine_type: e2-standard-16
+          disk_type: pd-balanced
+          disk_size_gb: 100
+          image_type: COS_CONTAINERD
+          locations:
+            - europe-west1-c
+            - europe-west1-d
+            - europe-west1-b
+          autoscaling:
+            enabled: true
+            max_node_count: 1000
+            location_policy: BALANCED
+          management:
+            auto_repair: true
+            auto_upgrade: true
+          shielded_config:
+            secure_boot: true
+            integrity_monitoring: true
+          max_pods_per_node: 32
+          service_account: default
+          version: 1.33.5-gke.2072000
+          
+        - name: pool-9
+          machine_type: e2-standard-32
+          disk_type: pd-balanced
+          disk_size_gb: 100
+          image_type: COS_CONTAINERD
+          locations:
+            - europe-west1-c
+            - europe-west1-d
+            - europe-west1-b
+          autoscaling:
+            enabled: true
+            max_node_count: 1000
+            location_policy: BALANCED
+          management:
+            auto_repair: true
+            auto_upgrade: true
+          shielded_config:
+            secure_boot: true
+            integrity_monitoring: true
+          max_pods_per_node: 32
+          service_account: default
+          version: 1.33.5-gke.2072000
+
+  # Note: Kubernetes workloads (Deployments, Services, etc.) should be
+  # documented in separate kubernetes manifest files or obtained via kubectl
+
+# ----------------------------------------------------------------------------
+# ARTIFACT REGISTRY
+# ----------------------------------------------------------------------------
+artifact_registry:
+  repositories:
+    - name: ai-receptionist
+      location: europe-west1
+      format: DOCKER
+      mode: STANDARD_REPOSITORY
+      description: "Docker images for AI Receptionist"
+      size_bytes: 2592360981  # ~2.6 GB
+      created: "2026-01-21T18:56:07.793320Z"
+      updated: "2026-01-24T00:11:20.244682Z"
+      vulnerability_scanning: DISABLED
+      
+      url: europe-west1-docker.pkg.dev/gtm-labs-484110/ai-receptionist
+      
+      images:
+        - name: backend
+          description: "Django backend application"
+          latest_tags: []  # Images are referenced by SHA
+          recent_versions:
+            - sha256:a6394abd185b7fd333f96679b499f23c83046efed80ae41b418776bc34730e98
+            - sha256:e5126d99586981dec8afff91db0baa1ebf74486d76fe30c2278f7a1deb7be04b
+            - sha256:b0c3b1e14ab1cc09338f5aadb35c496050d10b59832d291472f5e7c4c4d0bdb6
+            
+        - name: pgbouncer
+          description: "PgBouncer connection pooler (mirrored)"
+          versions:
+            - sha256:8eb7e813ad87cfba3eb50633d57fb0fc4a0bbbe198381c78ad76af1bc7be7603
+
+# ----------------------------------------------------------------------------
+# CLOUD STORAGE
+# ----------------------------------------------------------------------------
+storage:
+  buckets:
+    # Application Media Bucket
+    - name: ai-receptionist-media
+      location: EUROPE-WEST1
+      location_type: region
+      storage_class: STANDARD
+      uniform_bucket_level_access: true
+      public_access_prevention: inherited
+      versioning: false
+      created: "2026-01-21T17:50:37+0000"
+      url: gs://ai-receptionist-media/
+      
+      cors_config:
+        max_age_seconds: 3600
+        methods: [GET, PUT, POST, DELETE, HEAD]
+        origins: ["*"]
+        response_headers:
+          - Content-Type
+          - Content-Disposition
+          - Content-Length
+          - x-goog-resumable
+          
+      lifecycle_rules:
+        - action: Delete
+          condition:
+            age: 30
+            prefix: dev/
+        - action: Delete
+          condition:
+            age: 90
+            prefix: staging/
+        - action: SetStorageClass
+          target_class: NEARLINE
+          condition:
+            age: 365
+            prefix: prod/
+        - action: SetStorageClass
+          target_class: COLDLINE
+          condition:
+            age: 730
+            prefix: prod/
+            
+      soft_delete_retention_days: 7
+
+    # Application Static Files Bucket
+    - name: ai-receptionist-static
+      location: EUROPE-WEST1
+      location_type: region
+      storage_class: STANDARD
+      uniform_bucket_level_access: true
+      public_access_prevention: inherited
+      versioning: false
+      created: "2026-01-21T17:51:04+0000"
+      url: gs://ai-receptionist-static/
+      soft_delete_retention_days: 7
+
+    # Cloud Build Logs
+    - name: 824433763918-europe-west1-cloudbuild-logs
+      location: EUROPE-WEST1
+      location_type: region
+      storage_class: STANDARD
+      uniform_bucket_level_access: true
+      versioning: true
+      created: "2026-01-22T18:49:36+0000"
+      labels:
+        goog-cloudbuild-location: europe-west1
+      lifecycle_rules:
+        - action: Delete
+          condition:
+            num_newer_versions: 1
+
+    # Cloud Build Source/Artifacts
+    - name: gtm-labs-484110-cloudbuild
+      location: EUROPE-WEST1
+      location_type: region
+      storage_class: STANDARD
+      uniform_bucket_level_access: false
+      created: "2026-01-21T19:00:36+0000"
+
+    - name: gtm-labs-484110_europe-west1_cloudbuild
+      location: EUROPE-WEST1
+      location_type: region
+      storage_class: STANDARD
+      uniform_bucket_level_access: false
+      created: "2026-01-22T18:49:33+0000"
+
+# ----------------------------------------------------------------------------
+# SECRET MANAGER
+# ----------------------------------------------------------------------------
+secrets:
+  - name: db-password
+    created: "2026-01-19T15:50:05.644839Z"
+    replication:
+      type: user_managed
+      locations: [europe-west1]
+    description: "Database password for django_app user"
+    
+  - name: django-secret-key
+    created: "2026-01-19T15:50:15.533428Z"
+    replication:
+      type: user_managed
+      locations: [europe-west1]
+    description: "Django SECRET_KEY setting"
+    
+  - name: redis-password
+    created: "2026-01-19T15:50:23.421664Z"
+    replication:
+      type: user_managed
+      locations: [europe-west1]
+    description: "Redis AUTH password (if enabled)"
+
+# ----------------------------------------------------------------------------
+# IAM - SERVICE ACCOUNTS
+# ----------------------------------------------------------------------------
+service_accounts:
+  # Custom Service Accounts
+  - email: cloud-build@gtm-labs-484110.iam.gserviceaccount.com
+    display_name: "Cloud Build"
+    description: "Service account for CI/CD pipelines"
+    disabled: false
+    unique_id: "111877479157503787548"
+    
+  - email: gke-workload@gtm-labs-484110.iam.gserviceaccount.com
+    display_name: "GKE Workload Identity"
+    description: "Service account for GKE workload identity"
+    disabled: false
+    unique_id: "110103943075903306583"
+    
+  - email: django-app@gtm-labs-484110.iam.gserviceaccount.com
+    display_name: "Django Application"
+    description: "Service account for Django backend"
+    disabled: false
+    unique_id: "107526886676191574828"
+    
+  # Default Service Accounts
+  - email: 824433763918-compute@developer.gserviceaccount.com
+    display_name: "Compute Engine default service account"
+    disabled: false
+    unique_id: "104296959166341347649"
+    note: "Auto-created by GCP"
+
+# ----------------------------------------------------------------------------
+# IAM - POLICY BINDINGS
+# ----------------------------------------------------------------------------
+iam_policy:
+  # Project Owners
+  - role: roles/owner
+    members:
+      - user:alexander.bergstrom@telavox.com
+      - user:aron.tanos@telavox.com
+      - user:besarion.turmanauli@telavox.com
+
+  # Editor Role
+  - role: roles/editor
+    members:
+      - serviceAccount:824433763918-compute@developer.gserviceaccount.com
+      - serviceAccount:824433763918@cloudservices.gserviceaccount.com
+
+  # Container/GKE
+  - role: roles/container.developer
+    members:
+      - serviceAccount:824433763918@cloudbuild.gserviceaccount.com
+      - serviceAccount:cloud-build@gtm-labs-484110.iam.gserviceaccount.com
+      - serviceAccount:django-app@gtm-labs-484110.iam.gserviceaccount.com
+      - serviceAccount:gke-workload@gtm-labs-484110.iam.gserviceaccount.com
+
+  # Artifact Registry
+  - role: roles/artifactregistry.writer
+    members:
+      - serviceAccount:cloud-build@gtm-labs-484110.iam.gserviceaccount.com
+      - serviceAccount:django-app@gtm-labs-484110.iam.gserviceaccount.com
+
+  # Cloud Build
+  - role: roles/cloudbuild.builds.builder
+    members:
+      - serviceAccount:824433763918@cloudbuild.gserviceaccount.com
+      - serviceAccount:cloud-build@gtm-labs-484110.iam.gserviceaccount.com
+
+  # Secret Manager
+  - role: roles/secretmanager.secretAccessor
+    members:
+      - serviceAccount:django-app@gtm-labs-484110.iam.gserviceaccount.com
+
+  # Cloud Storage
+  - role: roles/storage.objectAdmin
+    members:
+      - serviceAccount:django-app@gtm-labs-484110.iam.gserviceaccount.com
+
+  # Logging
+  - role: roles/logging.logWriter
+    members:
+      - serviceAccount:django-app@gtm-labs-484110.iam.gserviceaccount.com
+
+  # Pub/Sub
+  - role: roles/pubsub.publisher
+    members:
+      - serviceAccount:django-app@gtm-labs-484110.iam.gserviceaccount.com
+
+  # AlloyDB (for future use)
+  - role: roles/alloydb.client
+    members:
+      - serviceAccount:django-app@gtm-labs-484110.iam.gserviceaccount.com
+
+  # GCP-managed Service Agents (auto-created)
+  - role: roles/alloydb.serviceAgent
+    members:
+      - serviceAccount:service-824433763918@gcp-sa-alloydb.iam.gserviceaccount.com
+  - role: roles/artifactregistry.serviceAgent
+    members:
+      - serviceAccount:service-824433763918@gcp-sa-artifactregistry.iam.gserviceaccount.com
+  - role: roles/cloudbuild.serviceAgent
+    members:
+      - serviceAccount:service-824433763918@gcp-sa-cloudbuild.iam.gserviceaccount.com
+  - role: roles/cloudkms.serviceAgent
+    members:
+      - serviceAccount:service-824433763918@gcp-sa-cloudkms.iam.gserviceaccount.com
+  - role: roles/compute.serviceAgent
+    members:
+      - serviceAccount:service-824433763918@compute-system.iam.gserviceaccount.com
+  - role: roles/container.defaultNodeServiceAgent
+    members:
+      - serviceAccount:service-824433763918@gcp-sa-gkenode.iam.gserviceaccount.com
+  - role: roles/container.serviceAgent
+    members:
+      - serviceAccount:service-824433763918@container-engine-robot.iam.gserviceaccount.com
+  - role: roles/containerregistry.ServiceAgent
+    members:
+      - serviceAccount:service-824433763918@containerregistry.iam.gserviceaccount.com
+  - role: roles/dataflow.serviceAgent
+    members:
+      - serviceAccount:service-824433763918@dataflow-service-producer-prod.iam.gserviceaccount.com
+  - role: roles/networkconnectivity.serviceAgent
+    members:
+      - serviceAccount:service-824433763918@gcp-sa-networkconnectivity.iam.gserviceaccount.com
+  - role: roles/pubsub.serviceAgent
+    members:
+      - serviceAccount:service-824433763918@gcp-sa-pubsub.iam.gserviceaccount.com
+  - role: roles/redis.serviceAgent
+    members:
+      - serviceAccount:service-824433763918@cloud-redis.iam.gserviceaccount.com
+  - role: roles/servicenetworking.serviceAgent
+    members:
+      - serviceAccount:service-824433763918@service-networking.iam.gserviceaccount.com
+
+# ----------------------------------------------------------------------------
+# LOAD BALANCING
+# ----------------------------------------------------------------------------
+load_balancing:
+  url_maps:
+    - name: ai-receptionist-static-lb
+      default_service: ai-receptionist-static-backend (backend bucket)
+      created: "2026-01-21T09:54:29.119-08:00"
+    
+    - name: k8s2-um-rys7cx7v-ai-receptionist-staging-api-ingress-bexj53qu
+      type: GKE Ingress (auto-managed)
+      default_service: k8s1-938b454f-ai-receptionist-staging-django-80-0efe72e2
+      host: api.ai-dev.telavox.com
+      ssl_certificate: ai-receptionist-backend-cert
+      paths:
+        - /api/* -> django
+        - /admin/* -> django
+        - /health/* -> django
+        - /ready/* -> django
+        - /ws/* -> daphne
+      created: "2026-01-28"
+      updated: "2026-02-10"
+      
+  forwarding_rules:
+    - name: ai-receptionist-static-http
+      ip_address: 34.111.39.139
+      ip_protocol: TCP
+      port_range: "80-80"
+      load_balancing_scheme: EXTERNAL
+      network_tier: PREMIUM
+      target: ai-receptionist-static-proxy (HTTP proxy)
+      created: "2026-01-21T09:55:16.322-08:00"
+    
+    - name: k8s2-fr-rys7cx7v-ai-receptionist-staging-api-ingress-bexj53qu
+      description: Backend API (GKE Ingress)
+      ip_address: 34.149.93.161
+      ip_protocol: TCP
+      port_range: "80,443"
+      load_balancing_scheme: EXTERNAL
+      target: k8s2-tp-rys7cx7v-ai-receptionist-staging-api-ingress-bexj53qu (HTTP/HTTPS proxy)
+      created: "2026-01-28"
+      updated: "2026-02-10"
+  
+  static_ips:
+    - name: ai-receptionist-api-ip
+      address: 34.149.93.161
+      type: GLOBAL
+      purpose: Backend API load balancer (staging)
+      domains:
+        - api.ai-dev.telavox.com (staging)
+        - api.ai.telavox.com (prod - pending separate IP or shared)
+      created: "2026-01-28"
+
+  ssl_certificates:
+    - name: ai-receptionist-backend-cert
+      type: MANAGED  # Google-managed, auto-renewing
+      domains:
+        - api.ai-dev.telavox.com
+      status: ACTIVE  # Confirmed active 2026-02-10
+      created: "2026-02-10"
+
+# ----------------------------------------------------------------------------
+# DNS
+# ----------------------------------------------------------------------------
+dns:
+  managed_zones:
+    - name: gke-ai-receptionist-cluster-f67adb64-dns
+      dns_name: cluster.local.
+      visibility: private
+      description: "Private zone for GKE cluster"
+      created: "2026-01-21T18:28:34.653Z"
+      name_servers:
+        - ns-gcp-private.googledomains.com.
+      gke_clusters:
+        - ai-receptionist-cluster
+
+  external_dns_records:
+    # Managed externally (Telavox DNS provider)
+    - name: api.ai-dev.telavox.com
+      type: A
+      value: 34.149.93.161
+      purpose: Backend API (staging)
+      verified: true  # DNS propagation confirmed 2026-02-10
+    - name: api.ai.telavox.com
+      type: A
+      value: 34.149.93.161
+      purpose: Backend API (production - pending separate infra)
+      verified: true  # DNS propagation confirmed 2026-02-10
+
+# ----------------------------------------------------------------------------
+# PUBSUB (Currently Empty)
+# ----------------------------------------------------------------------------
+pubsub:
+  topics: []
+  subscriptions: []
+
+# ----------------------------------------------------------------------------
+# QUICK REFERENCE - CONNECTION STRINGS
+# ----------------------------------------------------------------------------
+connection_strings:
+  cloud_sql:
+    connection_name: gtm-labs-484110:europe-west1:ai-receptionist-db-dev
+    private_ip: 10.83.0.3
+    database: ai_receptionist
+    user: django_app
+    # password: stored in Secret Manager (db-password)
+    
+  redis_prod:
+    host: 10.206.203.100
+    port: 6379
+    read_host: 10.206.203.101
+    read_port: 6379
+    # password: stored in Secret Manager (redis-password) if AUTH enabled
+    
+  redis_dev:
+    host: 10.209.232.147
+    port: 6379
+    
+  artifact_registry:
+    url: europe-west1-docker.pkg.dev/gtm-labs-484110/ai-receptionist
+
+# ----------------------------------------------------------------------------
+# QUICK REFERENCE - USEFUL COMMANDS
+# ----------------------------------------------------------------------------
+useful_commands:
+  # Connect to GKE cluster
+  gke_credentials: |
+    gcloud container clusters get-credentials ai-receptionist-cluster \
+      --region=europe-west1 --project=gtm-labs-484110
+      
+  # Build and push Docker image
+  docker_build: |
+    docker build -t europe-west1-docker.pkg.dev/gtm-labs-484110/ai-receptionist/backend:latest .
+    docker push europe-west1-docker.pkg.dev/gtm-labs-484110/ai-receptionist/backend:latest
+    
+  # Cloud Build submit
+  cloud_build: |
+    gcloud builds submit --tag=europe-west1-docker.pkg.dev/gtm-labs-484110/ai-receptionist/backend:latest \
+      --project=gtm-labs-484110 --region=europe-west1
+      
+  # Access secrets
+  get_secret: |
+    gcloud secrets versions access latest --secret=SECRET_NAME --project=gtm-labs-484110
+    
+  # Connect to Cloud SQL (via proxy)
+  sql_proxy: |
+    cloud-sql-proxy gtm-labs-484110:europe-west1:ai-receptionist-db-dev
+    
+  # View logs
+  gke_logs: |
+    gcloud logging read 'resource.type="k8s_container"' --project=gtm-labs-484110 --limit=100

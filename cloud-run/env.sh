@@ -33,4 +33,4 @@ export SECRET_N8N_DB_PASSWORD="n8n-db-password"
 export SECRET_N8N_ENCRYPTION_KEY="n8n-encryption-key"
 
 # Timezone
-export N8N_TIMEZONE="Asia/Tbilisi"
+export N8N_TIMEZONE="Europe/Stockholm"

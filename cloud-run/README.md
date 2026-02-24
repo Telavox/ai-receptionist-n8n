@@ -128,8 +128,8 @@ No VPC connector needed — uses Cloud Run Direct VPC Egress.
 | `DB_POSTGRESDB_USER` | `n8n_app` |
 | `DB_POSTGRESDB_PASSWORD` | *(from Secret Manager)* |
 | `N8N_ENCRYPTION_KEY` | *(from Secret Manager)* |
-| `GENERIC_TIMEZONE` | `Asia/Tbilisi` |
-| `TZ` | `Asia/Tbilisi` |
+| `GENERIC_TIMEZONE` | `Europe/Stockholm` |
+| `TZ` | `Europe/Stockholm` |
 | `N8N_RUNNERS_ENABLED` | `true` |
 | `N8N_SECURE_COOKIE` | `true` |
 | `NODE_ENV` | `production` |

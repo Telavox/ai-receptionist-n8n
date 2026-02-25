@@ -39,5 +39,8 @@ export N8N_SMTP_PORT="587"
 export N8N_SMTP_USER="besarion.turmanauli@telavox.com"
 export N8N_SMTP_SENDER="besarion.turmanauli@telavox.com"
 
+# n8n Public URL
+export N8N_PUBLIC_URL="https://n8n-824433763918.europe-west1.run.app"
+
 # Timezone
 export N8N_TIMEZONE="Europe/Stockholm"

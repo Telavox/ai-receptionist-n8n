@@ -81,7 +81,8 @@ N8N_HOST=$(echo ${N8N_PUBLIC_URL} | sed 's|https://||'),\
 N8N_PROTOCOL=https,\
 WEBHOOK_URL=${N8N_PUBLIC_URL}/,\
 N8N_EDITOR_BASE_URL=${N8N_PUBLIC_URL}/,\
-N8N_PUSH_BACKEND=websocket\
+N8N_PUSH_BACKEND=websocket,\
+N8N_ENDPOINT_HEALTH=health\
 " \
   --set-secrets="\
 DB_POSTGRESDB_PASSWORD=${SECRET_N8N_DB_PASSWORD}:latest,\

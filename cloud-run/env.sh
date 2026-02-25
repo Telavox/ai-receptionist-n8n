@@ -31,6 +31,13 @@ export SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gservice
 # Secret Manager
 export SECRET_N8N_DB_PASSWORD="n8n-db-password"
 export SECRET_N8N_ENCRYPTION_KEY="n8n-encryption-key"
+export SECRET_N8N_SMTP_PASS="n8n-smtp-password"
+
+# SMTP (for invitation emails)
+export N8N_SMTP_HOST="smtp.gmail.com"
+export N8N_SMTP_PORT="587"
+export N8N_SMTP_USER="besarion.turmanauli@telavox.com"
+export N8N_SMTP_SENDER="besarion.turmanauli@telavox.com"
 
 # Timezone
 export N8N_TIMEZONE="Europe/Stockholm"

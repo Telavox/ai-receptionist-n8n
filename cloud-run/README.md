@@ -116,6 +116,7 @@ No VPC connector needed — uses Cloud Run Direct VPC Egress.
 | **Service Account** | `n8n-app@gtm-labs-484110.iam.gserviceaccount.com` | Roles: `cloudsql.client`, `secretmanager.secretAccessor`, `logging.logWriter`, `monitoring.metricWriter` |
 | **Secret** | `n8n-db-password` | PostgreSQL password for `n8n_app` |
 | **Secret** | `n8n-encryption-key` | n8n encryption key for credential storage |
+| **Secret** | `n8n-smtp-password` | Gmail app password for SMTP (invitation emails) |
 
 ### Environment Variables (set on Cloud Run)
 
@@ -133,6 +134,13 @@ No VPC connector needed — uses Cloud Run Direct VPC Egress.
 | `N8N_RUNNERS_ENABLED` | `true` |
 | `N8N_SECURE_COOKIE` | `true` |
 | `NODE_ENV` | `production` |
+| `N8N_EMAIL_MODE` | `smtp` |
+| `N8N_SMTP_HOST` | `smtp.gmail.com` |
+| `N8N_SMTP_PORT` | `587` |
+| `N8N_SMTP_USER` | `besarion.turmanauli@telavox.com` |
+| `N8N_SMTP_PASS` | *(from Secret Manager)* |
+| `N8N_SMTP_SSL` | `false` (TLS on port 587) |
+| `N8N_SMTP_SENDER` | `besarion.turmanauli@telavox.com` |
 
 ---
 

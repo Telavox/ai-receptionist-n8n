@@ -1,0 +1,948 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -688,
+        2320
+      ],
+      "id": "6ade1094-da7d-4bea-bf53-1be05312b06c",
+      "name": "Respond to Webhook6"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfor (const item of $input.all()) {\n  item.json.query.date = item.json.query?.date?.replace(/-/g, \"/\");\n}\n\nreturn $input.all();\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        2512
+      ],
+      "id": "2abb26cb-509d-4848-a605-7eee2f1c2666",
+      "name": "Clean up input4"
+    },
+    {
+      "parameters": {
+        "path": "/easytable/bookings/v2",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1584,
+        2512
+      ],
+      "id": "ea9cb8aa-7b6b-42f7-b62e-66f1937b4fc1",
+      "name": "Find existing bookings1",
+      "webhookId": "c8b4841f-4b6a-480c-841e-39f146caa49a"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.easytable.com/v2/bookings",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $json.query.email }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $json.headers.token}}"
+            },
+            {
+              "name": "X-Place-Token",
+              "value": "={{ $json.headers.token2 }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1136,
+        2512
+      ],
+      "id": "800d823e-7370-431b-9b6a-81484f2fbd0f",
+      "name": "Find relevant bookings1",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "function extractAppointmentData(results) { \n  return results.map(booking => {\n    return {\n    bookingID: booking.bookingID,\n    date: booking.date,\n    time: booking.arrival,\n    name:booking.name,\n    persons: booking.persons,\n  }\n  });\n}\n\nconst inputData = $input.first().json.body.bookings\nconst extractedData = extractAppointmentData(inputData);\n\nreturn extractedData"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        2416
+      ],
+      "id": "ee0219ae-b7e4-4431-896f-d4276397856c",
+      "name": "Extract bookings1",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "https://api.easytable.com/v2/bookingtypes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $json.headers.token }}"
+            },
+            {
+              "name": "X-Place-Token",
+              "value": "={{ $json.headers.token2 }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1136,
+        3248
+      ],
+      "id": "2e279412-0d46-4297-8160-83dc51ac7c00",
+      "name": "Get booking type2"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction extractData(results) { \n  let res = []\n\n  for (const bookingType of results){\n\n      res.push({\n        bookingTypeId: bookingType.json.bookingTypeID,\n        bookingTypeName:bookingType.json.name,\n        bookingTypeStartDate: bookingType.json.startDate,\n        bookingTypeEndDate: bookingType.json.endDate,\n        bookingTypeMinPersons: bookingType.json.personsMin,\n        bookingTypeMaxPersons: bookingType.json.personsMax,\n        weekdays:bookingType.json.weekdays,\n      })\n      \n    }\n\n  return res\n}\n\n\n\nconst inputData = $input.all()\nconst extractedData = extractData(inputData);\n\nreturn {booking_types: extractedData}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        3248
+      ],
+      "id": "71c66016-03e4-4cd6-bfd6-e50c886b70c6",
+      "name": "Clean up types2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const startDate = $('Clean up input17').first().json.query.startDate\n\nconst res = []\n\nfunction filterValidBookingTypes(bookings, startDateYMD) {\n  \n   const bookingDate = parseYMD(startDateYMD);\n  \n   bookings.map(b => {\n\n     \n    const endTs = parseMDY(b.json.endDate);\n     \n    // const startTs = parseMDY(b.json.startDate);\n   let isTimeValid = true;\n    if (endTs != null) {\n      isTimeValid = bookingDate <= endTs;\n    }  \n\n    if (isTimeValid){\n      res.push(b)\n    } \n  });\n}\n\nfunction parseYMD(ymd) {\n  const m = /^(\\d{4})[-\\/](\\d{2})[-\\/](\\d{2})$/.exec(ymd);\n  if (!m) return null;\n  const [ , y, mo, d ] = m.map(Number);\n  return Date.UTC(y, mo - 1, d);\n}\n/** Parse \"MM/DD/YYYY\" → UTC timestamp (ms) */\nfunction parseMDY(mdy) {\n  const m = /^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})$/.exec(mdy);\n  if (!m) return null;\n  const [ , mo, d, y ] = m.map(Number);\n  return Date.UTC(y, mo - 1, d);\n}\n\n\n\nconst inputData = $input.all()\nfilterValidBookingTypes(inputData, startDate);\n\nreturn res"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        3248
+      ],
+      "id": "faf22219-b265-42e0-9ba9-92a48b0502e5",
+      "name": "Filter invalid booking types2",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// function parseToInt(input) {\n//   const number = parseFloat(input);\n//   return Number.isInteger(number) ? parseInt(number) : number;\n// }\n\n\nconst date = new Date();\n\n// pad year, month, day manually\nconst formatted = date.getFullYear() + \"/\" +\n  String(date.getMonth() + 1).padStart(2, \"0\") + \"/\" +\n  String(date.getDate()).padStart(2, \"0\");\n\nfor (const item of $input.all()) {\n  item.json.query[\"startDate\"] = formatted;\n\n    // item.json.query.persons = parseToInt( item.json.query.persons);\n  \n\n\n}\n\nreturn $input.all();\n\n\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        3248
+      ],
+      "id": "71313319-fad0-4140-8393-613af728bea0",
+      "name": "Clean up input17"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/easytable/bookingtypes/prefetch",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1584,
+        3248
+      ],
+      "id": "890471ac-cbf8-4e89-a8eb-9f598ce39072",
+      "name": "Get booking types prefetch post",
+      "webhookId": "c8b4841f-4b6a-480c-841e-39f146caa49a"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"type\": \"conversation_initiation_client_data\",\n  \"dynamic_variables\": {\n  \"booking_types\": {{ JSON.stringify(JSON.stringify($json.booking_types)) }}\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -464,
+        3248
+      ],
+      "id": "579ff9d0-846f-4741-a278-9f6350b8736c",
+      "name": "Respond restaurant data",
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"error\": {{JSON.stringify($json?.error?.message ?? \"\") }}\n} ",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -912,
+        2608
+      ],
+      "id": "329af1d1-3e91-4fe3-87ca-a74189e7907d",
+      "name": "Err response1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "=  \"error\": {{JSON.stringify($json?.error?? \"\") }}\n} ",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -688,
+        2512
+      ],
+      "id": "30a00de9-d36f-49e4-aa1c-0649c65ded79",
+      "name": "Err response2"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction parseToInt(input) {\n  const number = parseFloat(input);\n  return Number.isInteger(number) ? parseInt(number) : number;\n}\n\nfor (const item of $input.all()) {\n  item.json.query.startDate = item.json.query.startDate.replace(/-/g, \"/\");\n    item.json.query.persons = parseToInt( item.json.query.persons);\n  if (item.json.query?.bookingTypeId!== undefined) {\n    item.json.query.bookingTypeId = parseToInt( item.json.query.bookingTypeId);\n  }\n    \n\n}\n\nreturn $input.all();\n\n\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        2928
+      ],
+      "id": "91f6220e-719a-4454-93b3-2bacb4dd3cee",
+      "name": "Clean up input14"
+    },
+    {
+      "parameters": {
+        "jsCode": "// +4-3 time\n\nfunction isTimeInRange(time, ref) {\n    // If ref is missing OR explicitly \"00:00\", accept all times\n  if (!ref || ref === \"00:00\") return true;\n\n  \n  const toMinutes = t => {\n    const [h, m] = t.split(\":\").map(Number);\n    return h * 60 + m;\n  };\n\n  const timeMinutes = toMinutes(time);\n  const startMinutes = toMinutes(ref)-(3*60);\n  const endMinutes = toMinutes(ref)+(4*60);\n  // const startMinutes = toMinutes(start)\n  // const endMinutes = toMinutes(start)\n\n  \n  return timeMinutes >= startMinutes && timeMinutes <= endMinutes;\n}\n\n// const startTime = $('Get booking availability with/out types').first().json.query.startTime\nconst step = $('Clean up input14').first().json.query.startTime\nconst startTime = step?.json?.query?.startTime ?? null; // optional\n\n// const endTime = $('Get booking availability with/out types').first().json.query.endTime\nfunction extractAvailabilityData(results) { \n  let res = []\n\n  for (const {date, times} of results){\n      if (times.length == 0 ){\n      continue\n      }\n\n     for (const {time} of times){\n        if (!isTimeInRange(time, startTime)){\n          continue\n        }\n    const [month, day, year] = date.split(\"/\");\n    \n    const formattedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;\n\n        res.push({\n        date: formattedDate,\n        time: time,\n      })\n      }\n      \n    }\n\n  return res\n}\n\n\n\nconst inputData = $input.first().json.body.availability\nconst extractedData = extractAvailabilityData(inputData);\n\nreturn extractedData"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -912,
+        2832
+      ],
+      "id": "500c71f0-fe5b-4072-a58b-1e46494bc5e5",
+      "name": "Code4",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -688,
+        2832
+      ],
+      "id": "9aaf282d-07a4-4f62-89f7-00e0618ee0eb",
+      "name": "Respond to Webhook15"
+    },
+    {
+      "parameters": {
+        "url": "https://api.easytable.com/v2/availability/period",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "startDate",
+              "value": "={{ $json.query.startDate }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $json.query.startDate }}"
+            },
+            {
+              "name": "persons",
+              "value": "={{ $json.query.persons }}"
+            },
+            {
+              "name": "typeID",
+              "value": "={{ $json.query?.bookingTypeId ?? undefined }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $json.headers.token }}"
+            },
+            {
+              "name": "X-Place-Token",
+              "value": "={{ $json.headers.token2 }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1136,
+        2928
+      ],
+      "id": "ee2c982e-9f5e-467f-ad23-72eb1b3fac5e",
+      "name": "Get availability with type",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"error\": {{JSON.stringify($json?.error?.message ?? \"\") }}\n} ",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -912,
+        3024
+      ],
+      "id": "ae6dd1e4-9186-4559-bc84-950dd658feee",
+      "name": "Err response5"
+    },
+    {
+      "parameters": {
+        "path": "/easytable/availabilities/v3",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1584,
+        2928
+      ],
+      "id": "97494acb-5e65-4938-94d3-cfaa179fe505",
+      "name": "Get booking availability with/out types",
+      "webhookId": "c8b4841f-4b6a-480c-841e-39f146caa49a"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Booking created",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -688,
+        1520
+      ],
+      "id": "7869bbff-2807-4e6d-b0af-85a7ae5352a2",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "/easytable/bookings/v2",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -1584,
+        1808
+      ],
+      "id": "1194fdc0-f110-4748-885c-26c43207465a",
+      "name": "Create booking",
+      "webhookId": "bec3e5af-411e-4262-b030-e83d64f03ed2"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction parseToInt(input) {\n  const number = parseFloat(input);\n  return Number.isInteger(number) ? parseInt(number) : number;\n}\n\nfor (const item of $input.all()) {\n    item.json.body.persons = parseToInt( item.json.body.persons);\n \n  item.json.body.mobile = parseToInt( item.json.body.mobile);\n    item.json.body.note =  item.json.body?.note?? \"\"\n\n  // if booking type id  -> set\n  // else -> set duration with default\n  if (item.json?.body?.bookingTypeId != undefined){\n    item.json.body.bookingTypeId = parseToInt( item.json.body.bookingTypeId) \n  } else {\n     item.json.body.duration = parseToInt( item.json.body?.duration ?? 120);\n    }\n\n}\n\nreturn $input.all();\n\n\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        1808
+      ],
+      "id": "c974686a-e77b-4ea4-90b3-d98dc33a3796",
+      "name": "Clean up input"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"error\": {{JSON.stringify($json?.error?.message ?? \"\") }}\n} ",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -688,
+        1712
+      ],
+      "id": "908bbd0a-2173-4274-8a46-4ff80f874b48",
+      "name": "Err response6"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "59b7f0e5-ad6a-4bda-9f98-19e20a7f9a53",
+              "leftValue": "={{ $json.body.bookingTypeId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "number",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1136,
+        1808
+      ],
+      "id": "ccc36806-47d8-4acd-91cc-79969ec003b6",
+      "name": "If booking type ?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.easytable.com/v2/bookings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $('Create booking').item.json.headers.token }}"
+            },
+            {
+              "name": "X-Place-Token",
+              "value": "={{ $('Create booking').item.json.headers.token2 }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n\"date\": \"{{ $json.body.date }}T00:01:00.000Z\",\n\"time\": \"{{ $json.body.time }}\",\n\"persons\": {{ $json.body.persons }},\n\"autoTable\": true,\n\"typeID\": {{ $json.body.bookingTypeId }},\n\"name\": \"{{ $json.body.name }}\",\n\"email\": \"{{ $json.body.email }}\",\n\"guestNote\": \"{{ $json.body.note }}\",\n\"emailNotifications\": 1,\n\"mobile\":\"{{ $json.body.mobile }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -912,
+        1616
+      ],
+      "id": "334b5e62-ffbc-49cd-bc33-16a3f06cdfe8",
+      "name": "Create booking with type",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.easytable.com/v2/bookings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "={{ $('Create booking').item.json.headers.token }}"
+            },
+            {
+              "name": "X-Place-Token",
+              "value": "={{ $('Create booking').item.json.headers.token2 }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n\"date\": \"{{ $json.body.date }}T00:01:00.000Z\",\n\"time\": \"{{ $json.body.time }}\",\n\"persons\": {{ $json.body.persons }},\n\"autoTable\": true,\n\"duration\": {{ $json.body.duration }},\n\"name\": \"{{ $json.body.name }}\",\n\"email\": \"{{ $json.body.email }}\",\n\"guestNote\": \"{{ $json.body.note }}\",\n\"emailNotifications\": 1,\n\"mobile\":\"{{ $json.body.mobile }}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -912,
+        2000
+      ],
+      "id": "08d610aa-13d6-4efb-a15d-b531c622b654",
+      "name": "Create booking without type",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Booking created",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -688,
+        1904
+      ],
+      "id": "61e75f74-6389-4b86-98f6-77e23f3a76ac",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"error\": {{JSON.stringify($json?.error?.message ?? \"\") }}\n} ",
+        "options": {
+          "responseCode": 500
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -688,
+        2096
+      ],
+      "id": "a5097989-5082-48ed-bb7e-d3d68fa5113a",
+      "name": "Err response7"
+    }
+  ],
+  "connections": {
+    "Clean up input4": {
+      "main": [
+        [
+          {
+            "node": "Find relevant bookings1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find existing bookings1": {
+      "main": [
+        [
+          {
+            "node": "Clean up input4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find relevant bookings1": {
+      "main": [
+        [
+          {
+            "node": "Extract bookings1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Err response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract bookings1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Err response2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get booking type2": {
+      "main": [
+        [
+          {
+            "node": "Filter invalid booking types2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up types2": {
+      "main": [
+        [
+          {
+            "node": "Respond restaurant data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter invalid booking types2": {
+      "main": [
+        [
+          {
+            "node": "Clean up types2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up input17": {
+      "main": [
+        [
+          {
+            "node": "Get booking type2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get booking types prefetch post": {
+      "main": [
+        [
+          {
+            "node": "Clean up input17",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up input14": {
+      "main": [
+        [
+          {
+            "node": "Get availability with type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get availability with type": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Err response5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get booking availability with/out types": {
+      "main": [
+        [
+          {
+            "node": "Clean up input14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create booking": {
+      "main": [
+        [
+          {
+            "node": "Clean up input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean up input": {
+      "main": [
+        [
+          {
+            "node": "If booking type ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If booking type ?": {
+      "main": [
+        [
+          {
+            "node": "Create booking with type",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create booking without type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create booking with type": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Err response6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create booking without type": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Err response7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Find existing bookings1": [
+      {
+        "headers": {
+          "token": "5109852A-1021-F011-B8E1-000C2936E584",
+          "token2": "2C19CA1F-6744-4D56-8D43-F9E08484579E"
+        },
+        "query": {
+          "email": "elfiabc123455678@gmail.com"
+        }
+      }
+    ],
+    "Get booking types prefetch post": [
+      {
+        "headers": {
+          "token": "5109852A-1021-F011-B8E1-000C2936E584",
+          "token2": "2C19CA1F-6744-4D56-8D43-F9E08484579E"
+        },
+        "query": {}
+      }
+    ],
+    "Get booking availability with/out types": [
+      {
+        "headers": {
+          "host": "rotvx.app.n8n.cloud",
+          "user-agent": "ElevenLabs/1.0",
+          "accept": "*/*",
+          "accept-encoding": "gzip, br",
+          "cdn-loop": "cloudflare; loops=1; subreqs=1",
+          "cf-connecting-ip": "34.77.234.246",
+          "cf-ew-via": "15",
+          "cf-ipcountry": "BE",
+          "cf-ray": "9bab14bdf60b004f-CDG",
+          "cf-visitor": "{\"scheme\":\"https\"}",
+          "cf-worker": "n8n.cloud",
+          "token": "5109852A-1021-F011-B8E1-000C2936E584",
+          "token2": "2C19CA1F-6744-4D56-8D43-F9E08484579E",
+          "x-forwarded-for": "34.77.234.246, 172.71.122.87",
+          "x-forwarded-host": "rotvx.app.n8n.cloud",
+          "x-forwarded-port": "443",
+          "x-forwarded-proto": "https",
+          "x-forwarded-server": "traefik-prod-users-gwc-7-c479b4d45-h7fm8",
+          "x-is-trusted": "yes",
+          "x-real-ip": "34.77.234.246"
+        },
+        "params": {},
+        "query": {
+          "startTime": "18:00",
+          "bookingTypeId": "30632",
+          "persons": "2",
+          "startDate": "2026-04-09"
+        },
+        "body": {},
+        "webhookUrl": "https://rotvx.app.n8n.cloud/webhook/easytable/availabilities/v3",
+        "executionMode": "production"
+      }
+    ],
+    "Respond to Webhook": [
+      {
+        "body": {
+          "bookingID": 42121405,
+          "customerID": 22501144,
+          "externalCustomerID": null,
+          "paymentURL": null
+        },
+        "headers": {
+          "date": "Mon, 28 Apr 2025 16:01:51 GMT",
+          "content-type": "application/json; charset=utf-8",
+          "transfer-encoding": "chunked",
+          "connection": "close",
+          "x-powered-by": "ASP.NET",
+          "cf-cache-status": "DYNAMIC",
+          "report-to": "{\"endpoints\":[{\"url\":\"https:\\/\\/a.nel.cloudflare.com\\/report\\/v4?s=H0lT3tzpaUepoYROz%2FFhVsLHhC1IINTnN1tR3NIY%2Fo1HAY%2BdFerQ9R7Hw2g0gu39G2qcEbb9EI7cWXCdc2789QwNNjRER2JmCzRnEI0SaBsK%2BjBafplDCsYVlwYZsDmqNwfg\"}],\"group\":\"cf-nel\",\"max_age\":604800}",
+          "nel": "{\"success_fraction\":0,\"report_to\":\"cf-nel\",\"max_age\":604800}",
+          "server": "cloudflare",
+          "cf-ray": "9377c7d59ba1d39e-FRA",
+          "server-timing": "cfL4;desc=\"?proto=TCP&rtt=1484&min_rtt=1475&rtt_var=432&sent=4&recv=6&lost=0&retrans=0&sent_bytes=2830&recv_bytes=1071&delivery_rate=1880184&cwnd=251&unsent_bytes=0&cid=729e901351eba7d5&ts=396&x=0\""
+        },
+        "statusCode": 200,
+        "statusMessage": "OK"
+      }
+    ],
+    "Create booking": [
+      {
+        "headers": {
+          "token": "5109852A-1021-F011-B8E1-000C2936E584",
+          "token2": "2C19CA1F-6744-4D56-8D43-F9E08484579E"
+        },
+        "body": {
+          "date": "2026-04-28",
+          "time": "17:30",
+          "persons": 2,
+          "autoTable": true,
+          "bookingTypeId": 30632,
+          "name": "test1",
+          "duration": 120,
+          "email": "elfi1233454896565@gmail.com",
+          "note": "any",
+          "emailNotifications": 1,
+          "mobile": "1234567898"
+        }
+      }
+    ],
+    "Create booking with type": [
+      {
+        "body": {
+          "bookingID": 55227308,
+          "customerID": 28652043,
+          "externalCustomerID": null,
+          "paymentURL": null
+        },
+        "headers": {
+          "date": "Wed, 25 Feb 2026 15:06:51 GMT",
+          "content-type": "application/json; charset=utf-8",
+          "transfer-encoding": "chunked",
+          "connection": "close",
+          "server": "cloudflare",
+          "x-powered-by": "ASP.NET, ARR/3.0, ASP.NET",
+          "cf-cache-status": "DYNAMIC",
+          "server-timing": "cfCacheStatus;desc=\"DYNAMIC\", cfEdge;dur=29,cfOrigin;dur=150",
+          "cf-ray": "9d381be66aa992c9-FRA"
+        },
+        "statusCode": 200,
+        "statusMessage": "OK"
+      }
+    ]
+  },
+  "meta": {
+    "instanceId": "5a1ad0b6e4e315cbf75681aacaf88497376ffcd4d04f794ce1950a36b8d57998"
+  }
+}
